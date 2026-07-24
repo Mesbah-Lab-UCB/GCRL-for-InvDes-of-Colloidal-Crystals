@@ -223,36 +223,22 @@ Generates perfect crystal configurations and target RDFs for all supported latti
 
 ## Installation
 
-### Prerequisites
+Clone the repository and create the conda environment using one of the provided YAML files.
+
+### GPU (recommended)
 
 ```bash
-# Core dependencies
-conda install numpy matplotlib scipy
-conda install freud-analysis
-conda install ase dscribe scikit-learn
-conda install -c conda-forge pandas=2.2.3
-
-conda install -c conda-forge pytorch=2.7.0
-conda install -c conda-forge freud=3.3.1
-conda install -c conda-forge gsd=3.4.2
-
+conda env create -f environment_gpu.yml
+conda activate hoomd_env
 ```
 
-### HOOMD-blue Installation
+Requires a CUDA 12.6-compatible GPU.
+
+### CPU only
 
 ```bash
-# For GPU support (recommended)
-conda install "hoomd=5.2.0=*gpu*" "cuda-version=12.6" -c conda-forge
-
-# For CPU only
-pip install hoomd
-```
-
-### OVITO Installation
-
-```bash
-conda install --strict-channel-priority -c https://conda.ovito.org -c conda-forge ovito=3.12.4
-
+conda env create -f environment_cpu.yml
+conda activate hoomd_env
 ```
 
 ## Usage

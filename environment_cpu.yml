@@ -15,7 +15,5 @@ dependencies:
   - pandas=2.2.3
   - pytorch=2.7.0
   - gsd=3.4.2
+  - hoomd=5.2.0
   - ovito=3.12.4
-  - pip
-  - pip:
-    - hoomd
