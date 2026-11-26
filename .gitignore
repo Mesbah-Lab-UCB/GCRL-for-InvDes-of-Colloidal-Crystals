@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+Model_and_Results/
+RDF_plots/
+input_logs/
+Trajectories_and_Potentials/
+multinode_results/task_*_args.pkl
+multinode_results/task_*_result.pkl
+*.gsd
+!Initial_Configurations/*.gsd
+*.out
+*.err
+gpu_check_*.txt
