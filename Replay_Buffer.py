@@ -179,7 +179,9 @@ class Buffer:
             next_states = next_state_t.detach().cpu().numpy()
             rewards = reward_t.detach().cpu().numpy()
 
-            self.add(state_t, actions, rewards, next_states, epoch=0)
+            # Rewards were computed for the target goal, so label them with it
+            self.add(state_t, actions, rewards, next_states,
+                     best_idx=parameters.ig, goal=parameters.ig, epoch=start_epoch)
 
             remaining -= current_batch
             epoch += 1

@@ -997,107 +997,111 @@ if __name__ == "__main__":
             np.savetxt(os.path.join(network_metrics_dir, "gradients.csv"), gradients, delimiter=",", header="Norms per layer for weigh and bias gradients", comments="")
 
     # Save training logs to CSV for plotting (AFTER training loop completes)
-    action_array = np.vstack(action_log)
-    reward_array = np.array(reward_log)
+    if len(action_log) == 0:
+        # e.g. early stopping on the very first epoch: nothing to tabulate
+        print("[WARNING] No completed epochs in the training logs; skipping per-epoch CSVs")
+    else:
+        action_array = np.vstack(action_log)
+        reward_array = np.array(reward_log)
 
-    # Create epochs array: always start from 0 (includes loaded history + new epochs)
-    epochs_array = np.arange(len(reward_log))
+        # Create epochs array: always start from 0 (includes loaded history + new epochs)
+        epochs_array = np.arange(len(reward_log))
 
-    # Save actions log with statistics (mean, std, min, max) per action dimension
-    action_names = ['sigma_II', 'sigma_AB', 'lambda_II', 'lambda_AB']
-    action_data = {'epoch': epochs_array}
+        # Save actions log with statistics (mean, std, min, max) per action dimension
+        action_names = ['sigma_II', 'sigma_AB', 'lambda_II', 'lambda_AB']
+        action_data = {'epoch': epochs_array}
 
-    for i, name in enumerate(action_names):
-        action_data[f'{name}_mean'] = action_array[:, i]
-        action_data[f'{name}_std'] = np.array([stats['std'][i] for stats in action_stats_log])
-        action_data[f'{name}_min'] = np.array([stats['min'][i] for stats in action_stats_log])
-        action_data[f'{name}_max'] = np.array([stats['max'][i] for stats in action_stats_log])
+        for i, name in enumerate(action_names):
+            action_data[f'{name}_mean'] = action_array[:, i]
+            action_data[f'{name}_std'] = np.array([stats['std'][i] for stats in action_stats_log])
+            action_data[f'{name}_min'] = np.array([stats['min'][i] for stats in action_stats_log])
+            action_data[f'{name}_max'] = np.array([stats['max'][i] for stats in action_stats_log])
 
-    action_df = pd.DataFrame(action_data)
-    action_df.to_csv(os.path.join(training_dynamics_dir, "actions_per_epoch.csv"), index=False)
-    print(f"Saved action statistics to {training_dynamics_dir}/actions_per_epoch.csv")
+        action_df = pd.DataFrame(action_data)
+        action_df.to_csv(os.path.join(training_dynamics_dir, "actions_per_epoch.csv"), index=False)
+        print(f"Saved action statistics to {training_dynamics_dir}/actions_per_epoch.csv")
 
-    # Save rewards log (average reward for original goal per epoch)
-    reward_df = pd.DataFrame({"epoch": epochs_array, "avg_reward": reward_array})
-    reward_df.to_csv(os.path.join(training_dynamics_dir, "rewards_per_epoch.csv"), index=False)
-    print(f"Saved rewards to {training_dynamics_dir}/rewards_per_epoch.csv")
+        # Save rewards log (average reward for original goal per epoch)
+        reward_df = pd.DataFrame({"epoch": epochs_array, "avg_reward": reward_array})
+        reward_df.to_csv(os.path.join(training_dynamics_dir, "rewards_per_epoch.csv"), index=False)
+        print(f"Saved rewards to {training_dynamics_dir}/rewards_per_epoch.csv")
 
-    # Save sigma and performance logs for noise scheduler validation
-    sigma_array = np.array(sigma_log)
-    performance_array = np.array(performance_log)
-    scheduler_df = pd.DataFrame({
-        "epoch": epochs_array,
-        "sigma": sigma_array,
-        "success_rate": performance_array,  # Now based on rollout successes, not Q-values
-        "noise_coeff": sigma_array / (policy.u_max - policy.u_min).numpy().mean()  # Recover coefficient
-    })
-    scheduler_df.to_csv(os.path.join(training_dynamics_dir, "noise_scheduler_per_epoch.csv"), index=False)
-    print(f"Saved noise scheduler validation data to {training_dynamics_dir}/noise_scheduler_per_epoch.csv")
+        # Save sigma and performance logs for noise scheduler validation
+        sigma_array = np.array(sigma_log)
+        performance_array = np.array(performance_log)
+        scheduler_df = pd.DataFrame({
+            "epoch": epochs_array,
+            "sigma": sigma_array,
+            "success_rate": performance_array,  # Now based on rollout successes, not Q-values
+            "noise_coeff": sigma_array / (policy.u_max - policy.u_min).numpy().mean()  # Recover coefficient
+        })
+        scheduler_df.to_csv(os.path.join(training_dynamics_dir, "noise_scheduler_per_epoch.csv"), index=False)
+        print(f"Saved noise scheduler validation data to {training_dynamics_dir}/noise_scheduler_per_epoch.csv")
 
-    # NEW: Save critic loss per epoch
-    critic_loss_df = pd.DataFrame({
-        'epoch': epochs_array,
-        'q1_loss': [log['q1_loss'] for log in critic_loss_log],
-        'q2_loss': [log['q2_loss'] for log in critic_loss_log],
-        'combined_loss': [log['combined_loss'] for log in critic_loss_log]
-    })
-    critic_loss_df.to_csv(os.path.join(network_metrics_dir, "critic_loss_per_epoch.csv"), index=False)
-    print(f"Saved critic loss data to {network_metrics_dir}/critic_loss_per_epoch.csv")
+        # NEW: Save critic loss per epoch
+        critic_loss_df = pd.DataFrame({
+            'epoch': epochs_array,
+            'q1_loss': [log['q1_loss'] for log in critic_loss_log],
+            'q2_loss': [log['q2_loss'] for log in critic_loss_log],
+            'combined_loss': [log['combined_loss'] for log in critic_loss_log]
+        })
+        critic_loss_df.to_csv(os.path.join(network_metrics_dir, "critic_loss_per_epoch.csv"), index=False)
+        print(f"Saved critic loss data to {network_metrics_dir}/critic_loss_per_epoch.csv")
 
-    # NEW: Save Q-value evolution per epoch
-    q_value_df = pd.DataFrame({
-        'epoch': epochs_array,
-        'q1_mean': [log['q1_mean'] for log in q_value_log],
-        'q1_min': [log['q1_min'] for log in q_value_log],
-        'q1_max': [log['q1_max'] for log in q_value_log],
-        'q2_mean': [log['q2_mean'] for log in q_value_log],
-        'q2_min': [log['q2_min'] for log in q_value_log],
-        'q2_max': [log['q2_max'] for log in q_value_log]
-    })
-    q_value_df.to_csv(os.path.join(network_metrics_dir, "q_values_per_epoch.csv"), index=False)
-    print(f"Saved Q-value evolution data to {network_metrics_dir}/q_values_per_epoch.csv")
+        # NEW: Save Q-value evolution per epoch
+        q_value_df = pd.DataFrame({
+            'epoch': epochs_array,
+            'q1_mean': [log['q1_mean'] for log in q_value_log],
+            'q1_min': [log['q1_min'] for log in q_value_log],
+            'q1_max': [log['q1_max'] for log in q_value_log],
+            'q2_mean': [log['q2_mean'] for log in q_value_log],
+            'q2_min': [log['q2_min'] for log in q_value_log],
+            'q2_max': [log['q2_max'] for log in q_value_log]
+        })
+        q_value_df.to_csv(os.path.join(network_metrics_dir, "q_values_per_epoch.csv"), index=False)
+        print(f"Saved Q-value evolution data to {network_metrics_dir}/q_values_per_epoch.csv")
 
-    # NEW: Save actor distribution parameters per epoch
-    actor_dist_data = {'epoch': epochs_array}
-    action_dim_names = ['sigma_II', 'lambda_AA', 'lambda_AB']  # 4D learned action space (σ_AB is fixed)
+        # NEW: Save actor distribution parameters per epoch
+        actor_dist_data = {'epoch': epochs_array}
+        action_dim_names = ['sigma_II', 'lambda_AA', 'lambda_AB']  # 4D learned action space (σ_AB is fixed)
 
-    for i, name in enumerate(action_dim_names):
-        actor_dist_data[f'{name}_mu_mean'] = np.array([log['mu_mean'][i] for log in actor_dist_log])
-        actor_dist_data[f'{name}_mu_std'] = np.array([log['mu_std'][i] for log in actor_dist_log])
-        actor_dist_data[f'{name}_mu_min'] = np.array([log['mu_min'][i] for log in actor_dist_log])
-        actor_dist_data[f'{name}_mu_max'] = np.array([log['mu_max'][i] for log in actor_dist_log])
+        for i, name in enumerate(action_dim_names):
+            actor_dist_data[f'{name}_mu_mean'] = np.array([log['mu_mean'][i] for log in actor_dist_log])
+            actor_dist_data[f'{name}_mu_std'] = np.array([log['mu_std'][i] for log in actor_dist_log])
+            actor_dist_data[f'{name}_mu_min'] = np.array([log['mu_min'][i] for log in actor_dist_log])
+            actor_dist_data[f'{name}_mu_max'] = np.array([log['mu_max'][i] for log in actor_dist_log])
 
-    # Add scheduled sigma (same for all action dims initially, but track separately)
-    for i, name in enumerate(action_dim_names):
-        actor_dist_data[f'{name}_sigma_scheduled'] = np.array([log['sigma_scheduled'][i] if hasattr(log['sigma_scheduled'], '__len__') else log['sigma_scheduled'] for log in actor_dist_log])
+        # Add scheduled sigma (same for all action dims initially, but track separately)
+        for i, name in enumerate(action_dim_names):
+            actor_dist_data[f'{name}_sigma_scheduled'] = np.array([log['sigma_scheduled'][i] if hasattr(log['sigma_scheduled'], '__len__') else log['sigma_scheduled'] for log in actor_dist_log])
 
-    actor_dist_df = pd.DataFrame(actor_dist_data)
-    actor_dist_df.to_csv(os.path.join(network_metrics_dir, "actor_distribution_per_epoch.csv"), index=False)
-    print(f"Saved actor distribution parameters to {network_metrics_dir}/actor_distribution_per_epoch.csv")
+        actor_dist_df = pd.DataFrame(actor_dist_data)
+        actor_dist_df.to_csv(os.path.join(network_metrics_dir, "actor_distribution_per_epoch.csv"), index=False)
+        print(f"Saved actor distribution parameters to {network_metrics_dir}/actor_distribution_per_epoch.csv")
 
-    # NEW: Save learning rates per epoch
-    lr_df = pd.DataFrame({
-        'epoch': epochs_array,
-        'actor_lr': [log['actor_lr'] for log in lr_log],
-        'critic_lr': [log['critic_lr'] for log in lr_log],
-        'alpha_lr': [log['alpha_lr'] for log in lr_log]
-    })
-    lr_df.to_csv(os.path.join(network_metrics_dir, "learning_rates_per_epoch.csv"), index=False)
-    print(f"Saved learning rate schedule to {network_metrics_dir}/learning_rates_per_epoch.csv")
+        # NEW: Save learning rates per epoch
+        lr_df = pd.DataFrame({
+            'epoch': epochs_array,
+            'actor_lr': [log['actor_lr'] for log in lr_log],
+            'critic_lr': [log['critic_lr'] for log in lr_log],
+            'alpha_lr': [log['alpha_lr'] for log in lr_log]
+        })
+        lr_df.to_csv(os.path.join(network_metrics_dir, "learning_rates_per_epoch.csv"), index=False)
+        print(f"Saved learning rate schedule to {network_metrics_dir}/learning_rates_per_epoch.csv")
 
-    # NEW: Save policy convergence metrics per epoch
-    convergence_df = pd.DataFrame({
-        'epoch': epochs_array,
-        'param_change_l2': [log['param_change_l2'] for log in policy_convergence_log]
-    })
-    convergence_df.to_csv(os.path.join(network_metrics_dir, "policy_convergence_per_epoch.csv"), index=False)
-    print(f"Saved policy convergence metrics to {network_metrics_dir}/policy_convergence_per_epoch.csv")
+        # NEW: Save policy convergence metrics per epoch
+        convergence_df = pd.DataFrame({
+            'epoch': epochs_array,
+            'param_change_l2': [log['param_change_l2'] for log in policy_convergence_log]
+        })
+        convergence_df.to_csv(os.path.join(network_metrics_dir, "policy_convergence_per_epoch.csv"), index=False)
+        print(f"Saved policy convergence metrics to {network_metrics_dir}/policy_convergence_per_epoch.csv")
 
     # Save best performing design parameters to CSV
     if best_action_params is not None:
         best_params_df = pd.DataFrame({
             'Parameter': ['σ_II (Attractive)', 'σ_AB (Fixed)', 'λ_II (Range)', 'λ_AB (Range)'],
-            'Value': best_action_params * 4,
+            'Value': best_action_params,
             'Performance': [best_performance] * 4 ,
             'Epoch': [best_epoch] * 4 
         })

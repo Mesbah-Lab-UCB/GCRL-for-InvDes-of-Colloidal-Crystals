@@ -251,6 +251,9 @@ def callhoomd(state_history, directory, index_AA, index_ij, index_BB, gpu_id, pa
     try:
         device = hoomd.device.GPU()
     except Exception as e:
+        print(f"[ERROR] GPU init failed | pid={os.getpid()} "
+              f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES')} "
+              f"| {type(e).__name__}: {e}", flush=True)
         device = hoomd.device.CPU()
 
     sim = hoomd.Simulation(device=device, seed=seed_assigned)
@@ -701,9 +704,17 @@ def calc_state(state, actions, batch_size, parameters, state_history, epoch):
         print(f"[INFO] Single-node execution")
         num_cores   = multiprocessing.cpu_count()
         max_workers = max(1, num_cores // num_threads_per_run)
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers, mp_context=multiprocessing.get_context("spawn")) as executor:
             futures = [executor.submit(run_step_parallel, *args) for args in args_list]
-            results = [f.result() for f in futures]
+            results = []
+            for i, f in enumerate(futures):
+                try:
+                    results.append(f.result())
+                except (Exception, SystemExit) as e:
+                    # Same default as a failed multi-node task: zero state, reward -1.
+                    # The rest of the batch is unaffected.
+                    print(f"[ERROR] Task {i} failed ({type(e).__name__}: {e}), using default result", flush=True)
+                    results.append((0.0, -1.0))
 
     state_vec  = []
     reward_vec = []
